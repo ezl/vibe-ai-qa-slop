@@ -194,33 +194,59 @@
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200">
                             <thead class="bg-gray-50">
+                                <!-- Row 1: Group headers -->
                                 <tr>
-                                    <th 
+                                    <th rowspan="2" 
                                         @click="sortBy('name')"
-                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
                                     >
                                         Agent Name {{ getSortIcon('name') }}
                                     </th>
+                                    <th colspan="2" 
+                                        class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200"
+                                    >
+                                        Calls
+                                    </th>
+                                    <th 
+                                        v-for="metric in comparisonMetrics" 
+                                        :key="metric"
+                                        colspan="2"
+                                        class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                        :class="metric === comparisonMetrics[comparisonMetrics.length - 1] ? '' : 'border-r border-gray-200'"
+                                    >
+                                        {{ formatMetricName(metric) }}
+                                    </th>
+                                </tr>
+                                <!-- Row 2: Column headers -->
+                                <tr>
                                     <th 
                                         @click="sortBy('total_calls')"
-                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
                                     >
-                                        Total Calls {{ getSortIcon('total_calls') }}
+                                        Total {{ getSortIcon('total_calls') }}
                                     </th>
                                     <th 
                                         @click="sortBy('completed_calls')"
-                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 border-r border-gray-200"
                                     >
-                                        Completed Calls {{ getSortIcon('completed_calls') }}
+                                        Completed {{ getSortIcon('completed_calls') }}
                                     </th>
-                                    <th 
-                                        v-for="metric in availableMetrics" 
-                                        :key="metric"
-                                        @click="sortBy(metric)"
-                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                    >
-                                        {{ metric }} {{ getSortIcon(metric) }}
-                                    </th>
+                                    <template v-for="metric in comparisonMetrics" :key="metric">
+                                        <th 
+                                            @click="sortBy(metric + '_score')"
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            :class="metric === comparisonMetrics[comparisonMetrics.length - 1] ? '' : 'border-r border-gray-200'"
+                                        >
+                                            Score {{ getSortIcon(metric + '_score') }}
+                                        </th>
+                                        <th 
+                                            @click="sortBy(metric + '_flags')"
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            :class="metric === comparisonMetrics[comparisonMetrics.length - 1] ? '' : 'border-r border-gray-200'"
+                                        >
+                                            Flags {{ getSortIcon(metric + '_flags') }}
+                                        </th>
+                                    </template>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
@@ -233,13 +259,14 @@
                                     <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ agent.name }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ agent.total_calls }}</td>
                                     <td class="px-4 py-3 text-sm text-gray-700">{{ agent.completed_calls || 0 }}</td>
-                                    <td 
-                                        v-for="metric in availableMetrics" 
-                                        :key="metric"
-                                        class="px-4 py-3 text-sm text-gray-700"
-                                    >
-                                        {{ getMetricValue(agent, metric) }}
-                                    </td>
+                                    <template v-for="metric in comparisonMetrics" :key="metric">
+                                        <td class="px-4 py-3 text-sm text-gray-700">
+                                            {{ getMetricScore(agent, metric) }}
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-gray-700">
+                                            {{ getMetricFlags(agent, metric) }}
+                                        </td>
+                                    </template>
                                 </tr>
                             </tbody>
                         </table>
@@ -248,50 +275,6 @@
                     <p v-if="sortedAgents.length === 0" class="text-gray-500 text-center py-4">
                         No agents found matching your search.
                     </p>
-                </div>
-            </div>
-            
-            <div v-if="filteredAgentStatistics && Object.keys(filteredAgentStatistics).length > 0" class="bg-white rounded-lg shadow-md mb-6">
-                <div 
-                    @click="toggleSection('agentStatistics')"
-                    class="p-6 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
-                >
-                    <h2 class="text-xl font-semibold text-gray-800">Agent Statistics</h2>
-                    <span class="text-gray-500">{{ expandedSections.agentStatistics ? '▼' : '▶' }}</span>
-                </div>
-                <div v-show="expandedSections.agentStatistics" class="px-6 pb-6">
-                    <div class="space-y-6">
-                        <div v-for="(stats, agent) in filteredAgentStatistics" :key="agent" class="border border-gray-200 rounded-lg p-4">
-                            <div class="flex justify-between items-center mb-3">
-                                <h3 class="text-lg font-semibold text-gray-800">{{ agent }}</h3>
-                                <div class="text-sm text-gray-600 space-x-4">
-                                    <span>Total Calls: {{ stats.total_calls }}</span>
-                                    <span>Completed Calls: {{ stats.completed_calls || 0 }}</span>
-                                </div>
-                            </div>
-                            
-                            <div v-if="stats.metrics && Object.keys(stats.metrics).length > 0" class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flags</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200">
-                                        <tr v-for="(metricStats, metric) in stats.metrics" :key="metric" class="hover:bg-gray-50">
-                                            <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.average }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.count }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.flags || 0 }}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
             
@@ -359,8 +342,34 @@
                         
                         <!-- Content -->
                         <div class="flex-1 overflow-y-auto p-6">
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
+                            <!-- Agent Flags Summary -->
+                            <div class="mb-6">
+                                <h4 class="text-md font-semibold text-gray-800 mb-3">Agent Flags Summary</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"># of Flags</th>
+                                                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white divide-y divide-gray-200">
+                                            <tr v-for="agentSummary in getAgentFlagsSummary(expandedMetric)" :key="agentSummary.agent" class="hover:bg-gray-50">
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ agentSummary.agent }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700 font-medium">{{ agentSummary.flagCount }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ agentSummary.total }}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- Flagged Calls Table -->
+                            <div>
+                                <h4 class="text-md font-semibold text-gray-800 mb-3">Flagged Calls</h4>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
                                     <thead class="bg-gray-50 sticky top-0">
                                         <tr>
                                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Agent</th>
@@ -371,32 +380,56 @@
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
-                                        <tr v-for="(row, index) in getFlaggedCallsForMetric(expandedMetric)" :key="index" class="hover:bg-gray-50">
-                                            <td class="px-4 py-3 text-sm text-gray-700">{{ row.agent || '' }}</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">
-                                                <div>{{ row.applicant_name || '' }}</div>
-                                                <div class="text-gray-400 text-xs mt-0.5">{{ row.order_id || '' }}</div>
-                                            </td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">{{ row.verification_type || '' }}</td>
-                                            <td class="px-4 py-3 text-sm text-gray-700">
-                                                <button 
-                                                    v-if="row.call_recording_link"
-                                                    @click="playRecording(row.call_recording_link, row)"
-                                                    class="text-blue-600 hover:text-blue-800 focus:outline-none"
-                                                    title="Play recording"
-                                                >
-                                                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
-                                                    </svg>
-                                                </button>
-                                                <span v-else class="text-gray-400">-</span>
-                                            </td>
-                                            <td class="px-4 py-3 text-sm text-gray-700 max-w-md">
-                                                <div class="truncate" :title="row[expandedMetric + '_reasoning'] || ''">
-                                                    {{ row[expandedMetric + '_reasoning'] || '-' }}
-                                                </div>
-                                            </td>
-                                        </tr>
+                                        <template v-for="(row, index) in getFlaggedCallsForMetric(expandedMetric)" :key="index">
+                                            <tr class="hover:bg-gray-50">
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ row.agent || '' }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">
+                                                    <div>{{ row.applicant_name || '' }}</div>
+                                                    <div class="text-gray-400 text-xs mt-0.5">{{ row.order_id || '' }}</div>
+                                                </td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">{{ row.verification_type || '' }}</td>
+                                                <td class="px-4 py-3 text-sm text-gray-700">
+                                                    <button 
+                                                        v-if="row.call_recording_link"
+                                                        @click="toggleAudioPlayer(index, row.call_recording_link)"
+                                                        class="text-blue-600 hover:text-blue-800 focus:outline-none"
+                                                        title="Play recording"
+                                                    >
+                                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                            <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"></path>
+                                                        </svg>
+                                                    </button>
+                                                    <span v-else class="text-gray-400">-</span>
+                                                </td>
+                                                <td class="px-4 py-3 text-sm text-gray-700 max-w-md">
+                                                    <div class="truncate" :title="row[expandedMetric + '_reasoning'] || ''">
+                                                        {{ row[expandedMetric + '_reasoning'] || '-' }}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            <tr v-if="audioPlayer.visible && audioPlayer.rowIndex === index">
+                                                <td colspan="5" class="px-4 py-4 bg-gray-50">
+                                                    <div class="flex items-center space-x-4">
+                                                        <audio 
+                                                            :src="audioPlayer.url" 
+                                                            controls 
+                                                            class="flex-1 audio-player-inline"
+                                                        >
+                                                            Your browser does not support the audio element.
+                                                        </audio>
+                                                        <button 
+                                                            @click="closeAudioPlayer"
+                                                            class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                                            title="Close player"
+                                                        >
+                                                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </template>
                                     </tbody>
                                 </table>
                             </div>
@@ -405,80 +438,6 @@
                 </div>
             </transition>
             
-            <!-- Audio Player Modal Component -->
-            <transition name="modal">
-                <div 
-                    v-if="audioPlayer.visible" 
-                    class="fixed inset-0 z-50 overflow-hidden"
-                    @click="closeAudioPlayer"
-                >
-                    <!-- Backdrop -->
-                    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-                    
-                    <!-- Modal Content -->
-                    <div class="absolute inset-0 flex items-center justify-center p-4" @click.stop>
-                        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-                            <!-- Header -->
-                            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                                <h3 class="text-lg font-semibold text-gray-900">Call Recording</h3>
-                                <button 
-                                    @click="closeAudioPlayer"
-                                    class="text-gray-400 hover:text-gray-600 focus:outline-none"
-                                >
-                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                            
-                            <!-- Audio Player -->
-                            <div class="px-6 py-4 border-b border-gray-200">
-                                <audio 
-                                    :src="audioPlayer.url" 
-                                    controls 
-                                    class="w-full audio-player-modal"
-                                    @loadedmetadata="onAudioLoaded"
-                                >
-                                    Your browser does not support the audio element.
-                                </audio>
-                            </div>
-                            
-                            <!-- Transcription -->
-                            <div class="flex-1 overflow-y-auto px-6 py-4">
-                                <h4 class="text-md font-semibold text-gray-800 mb-4">Transcription</h4>
-                                <div v-if="audioPlayer.transcription && audioPlayer.transcription.length > 0" class="space-y-3">
-                                    <div 
-                                        v-for="(segment, index) in audioPlayer.transcription" 
-                                        :key="index"
-                                        :class="[
-                                            'p-3 rounded-lg',
-                                            segment.speaker === 'agent' ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-gray-50 border-l-4 border-gray-400'
-                                        ]"
-                                    >
-                                        <div class="flex items-center mb-1">
-                                            <span 
-                                                :class="[
-                                                    'text-xs font-semibold uppercase',
-                                                    segment.speaker === 'agent' ? 'text-blue-700' : 'text-gray-700'
-                                                ]"
-                                            >
-                                                {{ segment.speaker === 'agent' ? 'Agent' : 'Verifier' }}
-                                            </span>
-                                            <span v-if="segment.timestamp" class="text-xs text-gray-500 ml-2">
-                                                {{ formatTimestamp(segment.timestamp) }}
-                                            </span>
-                                        </div>
-                                        <p class="text-sm text-gray-800">{{ segment.text }}</p>
-                                    </div>
-                                </div>
-                                <div v-else class="text-gray-500 text-center py-8">
-                                    <p>No transcription available</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </transition>
             {% endverbatim %}
         </div>
     </div>
@@ -508,13 +467,12 @@
                     expandedSections: {
                         aggregateStatistics: true,
                         agentComparison: true,
-                        agentStatistics: true,
                         parsedData: false
                     },
                     audioPlayer: {
                         visible: false,
                         url: null,
-                        transcription: []
+                        rowIndex: null
                     }
                 };
             },
@@ -584,8 +542,18 @@
                             } else if (this.sortColumn === 'completed_calls') {
                                 aVal = a.completed_calls || 0;
                                 bVal = b.completed_calls || 0;
+                            } else if (this.sortColumn.endsWith('_score')) {
+                                // Sort by metric score (average)
+                                const metric = this.sortColumn.replace('_score', '');
+                                aVal = a.metrics && a.metrics[metric] ? a.metrics[metric].average : 0;
+                                bVal = b.metrics && b.metrics[metric] ? b.metrics[metric].average : 0;
+                            } else if (this.sortColumn.endsWith('_flags')) {
+                                // Sort by metric flags
+                                const metric = this.sortColumn.replace('_flags', '');
+                                aVal = a.metrics && a.metrics[metric] ? a.metrics[metric].flags : 0;
+                                bVal = b.metrics && b.metrics[metric] ? b.metrics[metric].flags : 0;
                             } else {
-                                // Sort by metric average
+                                // Fallback: sort by metric average
                                 aVal = a.metrics && a.metrics[this.sortColumn] ? a.metrics[this.sortColumn].average : 0;
                                 bVal = b.metrics && b.metrics[this.sortColumn] ? b.metrics[this.sortColumn].average : 0;
                             }
@@ -606,6 +574,10 @@
                         return [];
                     }
                     return Object.keys(stats.overall_metrics);
+                },
+                comparisonMetrics() {
+                    // Only show these 4 specific metrics in the comparison table
+                    return ['correct_inputs', 'confirmed_company', 'call_recorded', 'followed_script'];
                 }
             },
             methods: {
@@ -682,6 +654,21 @@
                     }
                     return agent.metrics[metric].average;
                 },
+                getMetricScore(agent, metric) {
+                    if (!agent.metrics || !agent.metrics[metric]) {
+                        return '-';
+                    }
+                    return agent.metrics[metric].average;
+                },
+                getMetricFlags(agent, metric) {
+                    if (!agent.metrics || !agent.metrics[metric]) {
+                        return '-';
+                    }
+                    return agent.metrics[metric].flags || 0;
+                },
+                formatMetricName(metric) {
+                    return metric.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+                },
                 selectAgent(agentName) {
                     this.selectedAgent = this.selectedAgent === agentName ? null : agentName;
                 },
@@ -693,62 +680,95 @@
                 },
                 handleEscapeKey(event) {
                     if (event.key === 'Escape') {
-                        if (this.audioPlayer.visible) {
-                            this.closeAudioPlayer();
-                        } else if (this.expandedMetric) {
+                        if (this.expandedMetric) {
                             this.expandedMetric = null;
                         }
                     }
                 },
-                playRecording(url, row = null) {
-                    if (url) {
-                        // Extract transcription from row if available
-                        let transcription = [];
-                        if (row) {
-                            // Check for transcription fields - could be 'transcription', 'call_transcription', etc.
-                            const transcriptionField = row.transcription || row.call_transcription || row.transcript;
-                            if (transcriptionField) {
-                                // Try to parse if it's JSON, otherwise treat as plain text
-                                try {
-                                    transcription = JSON.parse(transcriptionField);
-                                } catch (e) {
-                                    // If not JSON, create a simple transcription structure
-                                    if (transcriptionField.trim()) {
-                                        transcription = [
-                                            { speaker: 'agent', text: transcriptionField, timestamp: null }
-                                        ];
-                                    }
-                                }
-                            }
+                toggleAudioPlayer(rowIndex, url) {
+                    if (this.audioPlayer.visible && this.audioPlayer.rowIndex === rowIndex) {
+                        // Close if clicking the same row
+                        this.closeAudioPlayer();
+                    } else {
+                        // Pause any currently playing audio
+                        const currentAudio = document.querySelector('.audio-player-inline');
+                        if (currentAudio) {
+                            currentAudio.pause();
                         }
-                        
+                        // Open new player
                         this.audioPlayer = {
                             visible: true,
                             url: url,
-                            transcription: transcription
+                            rowIndex: rowIndex
                         };
                     }
                 },
                 closeAudioPlayer() {
                     // Pause audio if playing
-                    const audioEl = document.querySelector('.audio-player-modal');
+                    const audioEl = document.querySelector('.audio-player-inline');
                     if (audioEl) {
                         audioEl.pause();
                     }
                     this.audioPlayer = {
                         visible: false,
                         url: null,
-                        transcription: []
+                        rowIndex: null
                     };
                 },
                 onAudioLoaded() {
                     // Audio metadata loaded - can add additional logic here if needed
                 },
-                formatTimestamp(seconds) {
-                    if (!seconds && seconds !== 0) return '';
-                    const mins = Math.floor(seconds / 60);
-                    const secs = Math.floor(seconds % 60);
-                    return `${mins}:${secs.toString().padStart(2, '0')}`;
+                getAgentFlagsSummary(metric) {
+                    if (!this.filteredRows || this.filteredRows.length === 0) {
+                        return [];
+                    }
+                    
+                    const requiresCompletedVerification = ['correct_inputs', 'confirmed_company', 'call_recorded', 'followed_script'];
+                    
+                    // Get all calls that contribute to the metric's Count (where metric value is not null)
+                    const totalCalls = this.filteredRows.filter(row => {
+                        if (requiresCompletedVerification.includes(metric)) {
+                            const callType = (row.call_type || '').trim();
+                            if (callType !== 'completed_verification') {
+                                return false;
+                            }
+                        }
+                        
+                        const value = this.parseNumeric(row[metric]);
+                        return value !== null;
+                    });
+                    
+                    // Get flagged calls (where metric value is not null and not equal to 1)
+                    const flaggedCalls = totalCalls.filter(row => {
+                        const value = this.parseNumeric(row[metric]);
+                        return value !== null && value !== 1;
+                    });
+                    
+                    // Count flags and totals per agent
+                    const agentStats = {};
+                    
+                    // Count totals
+                    totalCalls.forEach(row => {
+                        const agent = row.agent || 'Unknown';
+                        if (!agentStats[agent]) {
+                            agentStats[agent] = { flagCount: 0, total: 0 };
+                        }
+                        agentStats[agent].total++;
+                    });
+                    
+                    // Count flags
+                    flaggedCalls.forEach(row => {
+                        const agent = row.agent || 'Unknown';
+                        if (!agentStats[agent]) {
+                            agentStats[agent] = { flagCount: 0, total: 0 };
+                        }
+                        agentStats[agent].flagCount++;
+                    });
+                    
+                    // Convert to array and sort by flag count descending
+                    return Object.entries(agentStats)
+                        .map(([agent, stats]) => ({ agent, flagCount: stats.flagCount, total: stats.total }))
+                        .sort((a, b) => b.flagCount - a.flagCount);
                 },
                 getFlaggedCallsForMetric(metric) {
                     if (!this.filteredRows || this.filteredRows.length === 0) {
