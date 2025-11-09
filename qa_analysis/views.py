@@ -41,8 +41,8 @@ def _calculate_agent_statistics(rows):
             agent_stats[agent]['completed_calls'] = agent_stats[agent].get('completed_calls', 0) + 1
         
         for metric in metric_columns:
-            # For correct_inputs, only count records where call_type is completed_verification
-            if metric == 'correct_inputs':
+            # For correct_inputs, confirmed_company, call_recorded, and followed_script, only count records where call_type is completed_verification
+            if metric in ['correct_inputs', 'confirmed_company', 'call_recorded', 'followed_script']:
                 if call_type != 'completed_verification':
                     continue
             
@@ -100,10 +100,10 @@ def _calculate_aggregate_statistics(rows, agent_stats):
                 metric_columns.append(col)
     
     for row in rows:
+        call_type = row.get('call_type', '').strip()
         for metric in metric_columns:
-            # For correct_inputs, only count records where call_type is completed_verification
-            if metric == 'correct_inputs':
-                call_type = row.get('call_type', '').strip()
+            # For correct_inputs, confirmed_company, call_recorded, and followed_script, only count records where call_type is completed_verification
+            if metric in ['correct_inputs', 'confirmed_company', 'call_recorded', 'followed_script']:
                 if call_type != 'completed_verification':
                     continue
             

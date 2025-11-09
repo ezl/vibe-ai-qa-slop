@@ -547,7 +547,8 @@
                         }
                         
                         for (const metric of metricColumns) {
-                            if (metric === 'correct_inputs' && callType !== 'completed_verification') {
+                            // For correct_inputs, confirmed_company, call_recorded, and followed_script, only count records where call_type is completed_verification
+                            if ((metric === 'correct_inputs' || metric === 'confirmed_company' || metric === 'call_recorded' || metric === 'followed_script') && callType !== 'completed_verification') {
                                 continue;
                             }
                             
@@ -614,7 +615,8 @@
                         }
                         
                         for (const metric of metricColumns) {
-                            if (metric === 'correct_inputs' && callType !== 'completed_verification') {
+                            // For correct_inputs, confirmed_company, call_recorded, and followed_script, only count records where call_type is completed_verification
+                            if ((metric === 'correct_inputs' || metric === 'confirmed_company' || metric === 'call_recorded' || metric === 'followed_script') && callType !== 'completed_verification') {
                                 continue;
                             }
                             
