@@ -22,6 +22,21 @@
         .drawer-leave-to .drawer-panel {
             transform: translateX(100%);
         }
+        .modal-enter-active, .modal-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .modal-enter-from, .modal-leave-to {
+            opacity: 0;
+        }
+        .modal-enter-active > div > div,
+        .modal-leave-active > div > div {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        .modal-enter-from > div > div,
+        .modal-leave-to > div > div {
+            transform: scale(0.95);
+            opacity: 0;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -366,7 +381,7 @@
                                             <td class="px-4 py-3 text-sm text-gray-700">
                                                 <button 
                                                     v-if="row.call_recording_link"
-                                                    @click="playRecording(row.call_recording_link)"
+                                                    @click="playRecording(row.call_recording_link, row)"
                                                     class="text-blue-600 hover:text-blue-800 focus:outline-none"
                                                     title="Play recording"
                                                 >
@@ -384,6 +399,81 @@
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+            
+            <!-- Audio Player Modal Component -->
+            <transition name="modal">
+                <div 
+                    v-if="audioPlayer.visible" 
+                    class="fixed inset-0 z-50 overflow-hidden"
+                    @click="closeAudioPlayer"
+                >
+                    <!-- Backdrop -->
+                    <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+                    
+                    <!-- Modal Content -->
+                    <div class="absolute inset-0 flex items-center justify-center p-4" @click.stop>
+                        <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+                            <!-- Header -->
+                            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+                                <h3 class="text-lg font-semibold text-gray-900">Call Recording</h3>
+                                <button 
+                                    @click="closeAudioPlayer"
+                                    class="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                >
+                                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Audio Player -->
+                            <div class="px-6 py-4 border-b border-gray-200">
+                                <audio 
+                                    :src="audioPlayer.url" 
+                                    controls 
+                                    class="w-full audio-player-modal"
+                                    @loadedmetadata="onAudioLoaded"
+                                >
+                                    Your browser does not support the audio element.
+                                </audio>
+                            </div>
+                            
+                            <!-- Transcription -->
+                            <div class="flex-1 overflow-y-auto px-6 py-4">
+                                <h4 class="text-md font-semibold text-gray-800 mb-4">Transcription</h4>
+                                <div v-if="audioPlayer.transcription && audioPlayer.transcription.length > 0" class="space-y-3">
+                                    <div 
+                                        v-for="(segment, index) in audioPlayer.transcription" 
+                                        :key="index"
+                                        :class="[
+                                            'p-3 rounded-lg',
+                                            segment.speaker === 'agent' ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-gray-50 border-l-4 border-gray-400'
+                                        ]"
+                                    >
+                                        <div class="flex items-center mb-1">
+                                            <span 
+                                                :class="[
+                                                    'text-xs font-semibold uppercase',
+                                                    segment.speaker === 'agent' ? 'text-blue-700' : 'text-gray-700'
+                                                ]"
+                                            >
+                                                {{ segment.speaker === 'agent' ? 'Agent' : 'Verifier' }}
+                                            </span>
+                                            <span v-if="segment.timestamp" class="text-xs text-gray-500 ml-2">
+                                                {{ formatTimestamp(segment.timestamp) }}
+                                            </span>
+                                        </div>
+                                        <p class="text-sm text-gray-800">{{ segment.text }}</p>
+                                    </div>
+                                </div>
+                                <div v-else class="text-gray-500 text-center py-8">
+                                    <p>No transcription available</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -420,11 +510,16 @@
                         agentComparison: true,
                         agentStatistics: true,
                         parsedData: false
+                    },
+                    audioPlayer: {
+                        visible: false,
+                        url: null,
+                        transcription: []
                     }
                 };
             },
             mounted() {
-                // Add escape key listener for closing drawer
+                // Add escape key listener for closing drawer and audio player
                 document.addEventListener('keydown', this.handleEscapeKey);
             },
             beforeUnmount() {
@@ -597,14 +692,63 @@
                     this.expandedMetric = this.expandedMetric === metric ? null : metric;
                 },
                 handleEscapeKey(event) {
-                    if (event.key === 'Escape' && this.expandedMetric) {
-                        this.expandedMetric = null;
+                    if (event.key === 'Escape') {
+                        if (this.audioPlayer.visible) {
+                            this.closeAudioPlayer();
+                        } else if (this.expandedMetric) {
+                            this.expandedMetric = null;
+                        }
                     }
                 },
-                playRecording(url) {
+                playRecording(url, row = null) {
                     if (url) {
-                        window.open(url, '_blank');
+                        // Extract transcription from row if available
+                        let transcription = [];
+                        if (row) {
+                            // Check for transcription fields - could be 'transcription', 'call_transcription', etc.
+                            const transcriptionField = row.transcription || row.call_transcription || row.transcript;
+                            if (transcriptionField) {
+                                // Try to parse if it's JSON, otherwise treat as plain text
+                                try {
+                                    transcription = JSON.parse(transcriptionField);
+                                } catch (e) {
+                                    // If not JSON, create a simple transcription structure
+                                    if (transcriptionField.trim()) {
+                                        transcription = [
+                                            { speaker: 'agent', text: transcriptionField, timestamp: null }
+                                        ];
+                                    }
+                                }
+                            }
+                        }
+                        
+                        this.audioPlayer = {
+                            visible: true,
+                            url: url,
+                            transcription: transcription
+                        };
                     }
+                },
+                closeAudioPlayer() {
+                    // Pause audio if playing
+                    const audioEl = document.querySelector('.audio-player-modal');
+                    if (audioEl) {
+                        audioEl.pause();
+                    }
+                    this.audioPlayer = {
+                        visible: false,
+                        url: null,
+                        transcription: []
+                    };
+                },
+                onAudioLoaded() {
+                    // Audio metadata loaded - can add additional logic here if needed
+                },
+                formatTimestamp(seconds) {
+                    if (!seconds && seconds !== 0) return '';
+                    const mins = Math.floor(seconds / 60);
+                    const secs = Math.floor(seconds % 60);
+                    return `${mins}:${secs.toString().padStart(2, '0')}`;
                 },
                 getFlaggedCallsForMetric(metric) {
                     if (!this.filteredRows || this.filteredRows.length === 0) {
