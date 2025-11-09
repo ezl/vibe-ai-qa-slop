@@ -794,64 +794,12 @@
                     return metric.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
                 },
                 selectAgent(agentName) {
-                    console.log('=== selectAgent DEBUG ===');
-                    console.log('agentName:', agentName);
-                    console.log('expandedAgent BEFORE:', this.expandedAgent);
-                    console.log('expandedMetric BEFORE:', this.expandedMetric);
-                    
                     this.selectedAgent = this.selectedAgent === agentName ? null : agentName;
                     // Close metric drawer if open, then toggle agent drawer
                     if (this.expandedMetric) {
-                        console.log('Closing expandedMetric');
                         this.expandedMetric = null;
                     }
-                    const newValue = this.expandedAgent === agentName ? null : agentName;
-                    console.log('Setting expandedAgent to:', newValue);
-                    this.expandedAgent = newValue;
-                    console.log('expandedAgent AFTER:', this.expandedAgent);
-                    console.log('Type of expandedAgent:', typeof this.expandedAgent);
-                    console.log('expandedAgent truthy?', !!this.expandedAgent);
-                    
-                    this.$nextTick(() => {
-                        console.log('After $nextTick - expandedAgent:', this.expandedAgent);
-                        console.log('All refs:', Object.keys(this.$refs));
-                        const drawer = this.$refs.agentDrawer;
-                        console.log('Drawer ref exists?', !!drawer);
-                        
-                        // Check if element exists in DOM by various methods
-                        const drawerByQuery = document.querySelector('[ref="agentDrawer"]');
-                        console.log('Drawer by [ref="agentDrawer"]?', !!drawerByQuery);
-                        
-                        const drawerByClass = document.querySelector('.fixed.inset-0.z-50');
-                        console.log('Any fixed inset-0 z-50 element?', !!drawerByClass);
-                        console.log('Count of fixed inset-0 z-50 elements:', document.querySelectorAll('.fixed.inset-0.z-50').length);
-                        
-                        // Check Vue's internal vnode
-                        console.log('Vue app instance:', this.$);
-                        console.log('Vue root element:', this.$el);
-                        
-                        // Check if transition is interfering
-                        const transitions = document.querySelectorAll('transition');
-                        console.log('Number of transition elements in DOM:', transitions.length);
-                        
-                        // Check for Vue errors
-                        if (window.Vue && window.Vue.config) {
-                            console.log('Vue config:', window.Vue.config);
-                        }
-                        
-                        if (drawer) {
-                            console.log('Drawer element:', drawer);
-                            console.log('Drawer visible?', drawer.offsetParent !== null);
-                            console.log('Drawer computed style display:', window.getComputedStyle(drawer).display);
-                        } else {
-                            // Check if element exists in DOM by querySelector
-                            const drawerInDOM = document.querySelector('[ref="agentDrawer"]');
-                            console.log('Drawer in DOM by querySelector?', !!drawerInDOM);
-                            const drawerByClass = document.querySelector('.drawer-panel');
-                            console.log('Any drawer-panel in DOM?', !!drawerByClass);
-                            console.log('All elements with drawer-panel class:', document.querySelectorAll('.drawer-panel').length);
-                        }
-                    });
+                    this.expandedAgent = this.expandedAgent === agentName ? null : agentName;
                 },
                 getAgentCalls(agentName) {
                     if (!this.filteredRows || this.filteredRows.length === 0 || !agentName) {
