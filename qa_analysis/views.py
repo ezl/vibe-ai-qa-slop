@@ -2,6 +2,112 @@ from django.shortcuts import render
 from django.http import JsonResponse
 import csv
 import io
+from collections import defaultdict
+
+
+def _parse_numeric(value):
+    """Parse a value to numeric, handling empty strings and non-numeric values."""
+    if value == '' or value is None:
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
+
+
+def _calculate_agent_statistics(rows):
+    """Calculate statistics per agent."""
+    agent_stats = defaultdict(lambda: {
+        'total_calls': 0,
+        'metrics': defaultdict(lambda: {'sum': 0, 'count': 0, 'values': []})
+    })
+    
+    # Identify numeric metric columns (columns that end with specific patterns or are known metrics)
+    metric_columns = []
+    if rows:
+        for col in rows[0].keys():
+            # Look for columns that might be scores/metrics
+            if col not in ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type', 
+                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning'):
+                metric_columns.append(col)
+    
+    for row in rows:
+        agent = row.get('agent', 'Unknown')
+        agent_stats[agent]['total_calls'] += 1
+        
+        for metric in metric_columns:
+            value = _parse_numeric(row.get(metric))
+            if value is not None:
+                agent_stats[agent]['metrics'][metric]['sum'] += value
+                agent_stats[agent]['metrics'][metric]['count'] += 1
+                agent_stats[agent]['metrics'][metric]['values'].append(value)
+    
+    # Convert to final format
+    result = {}
+    for agent, stats in agent_stats.items():
+        metrics_summary = {}
+        for metric, metric_data in stats['metrics'].items():
+            count = metric_data['count']
+            if count > 0:
+                avg = metric_data['sum'] / count
+                values = metric_data['values']
+                metrics_summary[metric] = {
+                    'average': round(avg, 2),
+                    'count': count,
+                    'min': round(min(values), 2) if values else None,
+                    'max': round(max(values), 2) if values else None,
+                    'total': stats['total_calls']
+                }
+        
+        result[agent] = {
+            'total_calls': stats['total_calls'],
+            'metrics': metrics_summary
+        }
+    
+    return result
+
+
+def _calculate_aggregate_statistics(rows, agent_stats):
+    """Calculate overall aggregate statistics."""
+    total_calls = len(rows)
+    
+    # Aggregate metrics across all agents
+    all_metrics = defaultdict(lambda: {'sum': 0, 'count': 0, 'values': []})
+    
+    metric_columns = []
+    if rows:
+        for col in rows[0].keys():
+            if col not in ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type',
+                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning'):
+                metric_columns.append(col)
+    
+    for row in rows:
+        for metric in metric_columns:
+            value = _parse_numeric(row.get(metric))
+            if value is not None:
+                all_metrics[metric]['sum'] += value
+                all_metrics[metric]['count'] += 1
+                all_metrics[metric]['values'].append(value)
+    
+    # Calculate overall averages
+    overall_metrics = {}
+    for metric, data in all_metrics.items():
+        if data['count'] > 0:
+            overall_metrics[metric] = {
+                'average': round(data['sum'] / data['count'], 2),
+                'count': data['count'],
+                'min': round(min(data['values']), 2) if data['values'] else None,
+                'max': round(max(data['values']), 2) if data['values'] else None
+            }
+    
+    # Count unique agents
+    unique_agents = len(agent_stats)
+    
+    return {
+        'total_calls': total_calls,
+        'unique_agents': unique_agents,
+        'overall_metrics': overall_metrics
+    }
 
 
 def qa_analysis(request):
@@ -28,12 +134,18 @@ def qa_analysis(request):
             # Get column names
             columns = list(rows[0].keys()) if rows else []
             
-            # Return structured data
+            # Calculate statistics
+            agent_stats = _calculate_agent_statistics(rows)
+            aggregate_stats = _calculate_aggregate_statistics(rows, agent_stats)
+            
+            # Return structured data with statistics
             return JsonResponse({
                 'success': True,
                 'columns': columns,
                 'rows': rows,
-                'total_rows': len(rows)
+                'total_rows': len(rows),
+                'agent_statistics': agent_stats,
+                'aggregate_statistics': aggregate_stats
             })
         except Exception as e:
             import traceback

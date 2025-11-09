@@ -43,7 +43,7 @@
             </div>
             
             {% verbatim %}
-            <div v-if="parsedData" class="bg-white rounded-lg shadow-md p-6">
+            <div v-if="parsedData" class="bg-white rounded-lg shadow-md p-6 mb-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-4">Parsed CSV Data</h2>
                 <p class="text-sm text-gray-500 mb-4">Total rows: {{ totalRows }} | Columns: {{ columns.length }}</p>
                 
@@ -68,6 +68,90 @@
                     </table>
                 </div>
             </div>
+            
+            <div v-if="aggregateStatistics && Object.keys(aggregateStatistics).length > 0" class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Aggregate Statistics</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">Total Calls</p>
+                        <p class="text-2xl font-bold text-blue-700">{{ aggregateStatistics.total_calls || 0 }}</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">Unique Agents</p>
+                        <p class="text-2xl font-bold text-green-700">{{ aggregateStatistics.unique_agents || 0 }}</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <p class="text-sm text-gray-600 mb-1">Calls per Agent (Avg)</p>
+                        <p class="text-2xl font-bold text-purple-700">
+                            {{ aggregateStatistics.total_calls && aggregateStatistics.unique_agents ? 
+                                Math.round(aggregateStatistics.total_calls / aggregateStatistics.unique_agents) : 0 }}
+                        </p>
+                    </div>
+                </div>
+                
+                <div v-if="aggregateStatistics.overall_metrics && Object.keys(aggregateStatistics.overall_metrics).length > 0">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Overall Metrics</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="(stats, metric) in aggregateStatistics.overall_metrics" :key="metric" class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.average }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.min }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.max }}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.count }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="agentStatistics && Object.keys(agentStatistics).length > 0" class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Agent Statistics</h2>
+                
+                <div class="space-y-6">
+                    <div v-for="(stats, agent) in agentStatistics" :key="agent" class="border border-gray-200 rounded-lg p-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-lg font-semibold text-gray-800">{{ agent }}</h3>
+                            <span class="text-sm text-gray-600">Total Calls: {{ stats.total_calls }}</span>
+                        </div>
+                        
+                        <div v-if="stats.metrics && Object.keys(stats.metrics).length > 0" class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    <tr v-for="(metricStats, metric) in stats.metrics" :key="metric" class="hover:bg-gray-50">
+                                        <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.average }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.min }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.max }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.count }}</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
             {% endverbatim %}
         </div>
     </div>
@@ -84,6 +168,8 @@
                     columns: [],
                     rows: [],
                     totalRows: 0,
+                    agentStatistics: {},
+                    aggregateStatistics: {},
                     loading: false
                 };
             },
@@ -101,6 +187,8 @@
                     this.columns = [];
                     this.rows = [];
                     this.totalRows = 0;
+                    this.agentStatistics = {};
+                    this.aggregateStatistics = {};
                     
                     const formData = new FormData();
                     formData.append('file', this.selectedFile);
@@ -122,6 +210,8 @@
                             this.columns = data.columns || [];
                             this.rows = data.rows || [];
                             this.totalRows = data.total_rows || 0;
+                            this.agentStatistics = data.agent_statistics || {};
+                            this.aggregateStatistics = data.aggregate_statistics || {};
                         } else {
                             alert(data.error || 'Error uploading file. Please try again.');
                         }

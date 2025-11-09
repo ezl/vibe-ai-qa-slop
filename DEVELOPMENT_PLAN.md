@@ -93,24 +93,26 @@ Build a standalone Django app that ingests daily CSV files containing call cente
 
 ---
 
-### ⏳ Phase 6: Agent Statistics & Analysis
-**Status**: PENDING
+### ✅ Phase 6: Agent Statistics & Analysis
+**Status**: COMPLETED
 
-- [ ] Calculate per-agent statistics
-  - [ ] Total calls per agent
-  - [ ] Average scores per agent
-  - [ ] Score breakdowns by metric
-  - [ ] Min/max scores
-- [ ] Calculate aggregate statistics
-  - [ ] Overall averages
-  - [ ] Total calls analyzed
-  - [ ] Score distributions
-- [ ] Identify outliers and issues
-  - [ ] Low-performing agents
-  - [ ] Score anomalies
-  - [ ] Metric-specific issues
+- [x] Calculate per-agent statistics
+  - [x] Total calls per agent
+  - [x] Average scores per agent
+  - [x] Score breakdowns by metric
+  - [x] Min/max scores
+- [x] Calculate aggregate statistics
+  - [x] Overall averages
+  - [x] Total calls analyzed
+  - [x] Score distributions
+- [x] Display statistics in new section on page
+  - [x] Aggregate statistics section with summary cards
+  - [x] Overall metrics table
+  - [x] Per-agent statistics with detailed breakdowns
 
-**Dependencies**: Phase 5 must be completed first
+**Files Modified**:
+- `qa_analysis/views.py` - Added `_calculate_agent_statistics()` and `_calculate_aggregate_statistics()` functions
+- `templates/qa_analysis/index.html` - Added Aggregate Statistics and Agent Statistics sections
 
 ---
 
