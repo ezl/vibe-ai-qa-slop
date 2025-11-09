@@ -43,112 +43,256 @@
             </div>
             
             {% verbatim %}
-            <div v-if="parsedData" class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Parsed CSV Data</h2>
-                <p class="text-sm text-gray-500 mb-4">Total rows: {{ totalRows }} | Columns: {{ columns.length }}</p>
-                
-                <div class="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50 sticky top-0">
-                            <tr>
-                                <th v-for="column in columns" :key="column" 
-                                    class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                    {{ column }}
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr v-for="(row, index) in rows" :key="index" class="hover:bg-gray-50">
-                                <td v-for="column in columns" :key="column" 
-                                    class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
-                                    {{ row[column] || '' }}
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div v-if="parsedData && allVerificationTypes.length > 0" class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Filter by Verification Type</h2>
+                <div class="flex flex-wrap gap-4 items-center mb-4">
+                    <label 
+                        v-for="type in allVerificationTypes" 
+                        :key="type"
+                        class="flex items-center cursor-pointer"
+                    >
+                        <input 
+                            type="checkbox" 
+                            :value="type"
+                            :checked="selectedVerificationTypes.includes(type)"
+                            @change="toggleVerificationType(type)"
+                            class="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span class="text-sm text-gray-700">{{ type }}</span>
+                    </label>
                 </div>
+                <div class="flex gap-2">
+                    <button 
+                        @click="selectAllVerificationTypes"
+                        class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                        Select All
+                    </button>
+                    <button 
+                        @click="deselectAllVerificationTypes"
+                        class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                    >
+                        Deselect All
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 mt-2">
+                    Showing {{ filteredRows.length }} of {{ totalRows }} rows
+                </p>
             </div>
             
-            <div v-if="aggregateStatistics && Object.keys(aggregateStatistics).length > 0" class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Aggregate Statistics</h2>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-blue-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600 mb-1">Total Calls</p>
-                        <p class="text-2xl font-bold text-blue-700">{{ aggregateStatistics.total_calls || 0 }}</p>
-                    </div>
-                    <div class="bg-green-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600 mb-1">Unique Agents</p>
-                        <p class="text-2xl font-bold text-green-700">{{ aggregateStatistics.unique_agents || 0 }}</p>
-                    </div>
-                    <div class="bg-purple-50 p-4 rounded-lg">
-                        <p class="text-sm text-gray-600 mb-1">Calls per Agent (Avg)</p>
-                        <p class="text-2xl font-bold text-purple-700">
-                            {{ aggregateStatistics.total_calls && aggregateStatistics.unique_agents ? 
-                                Math.round(aggregateStatistics.total_calls / aggregateStatistics.unique_agents) : 0 }}
-                        </p>
-                    </div>
+            <div v-if="filteredAggregateStatistics && Object.keys(filteredAggregateStatistics).length > 0" class="bg-white rounded-lg shadow-md mb-6">
+                <div 
+                    @click="toggleSection('aggregateStatistics')"
+                    class="p-6 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
+                >
+                    <h2 class="text-xl font-semibold text-gray-800">Aggregate Statistics</h2>
+                    <span class="text-gray-500">{{ expandedSections.aggregateStatistics ? '▼' : '▶' }}</span>
                 </div>
-                
-                <div v-if="aggregateStatistics.overall_metrics && Object.keys(aggregateStatistics.overall_metrics).length > 0">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Overall Metrics</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="(stats, metric) in aggregateStatistics.overall_metrics" :key="metric" class="hover:bg-gray-50">
-                                    <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.average }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.min }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.max }}</td>
-                                    <td class="px-4 py-2 text-sm text-gray-700">{{ stats.count }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-            
-            <div v-if="agentStatistics && Object.keys(agentStatistics).length > 0" class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-4">Agent Statistics</h2>
-                
-                <div class="space-y-6">
-                    <div v-for="(stats, agent) in agentStatistics" :key="agent" class="border border-gray-200 rounded-lg p-4">
-                        <div class="flex justify-between items-center mb-3">
-                            <h3 class="text-lg font-semibold text-gray-800">{{ agent }}</h3>
-                            <span class="text-sm text-gray-600">Total Calls: {{ stats.total_calls }}</span>
+                <div v-show="expandedSections.aggregateStatistics" class="px-6 pb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Total Calls</p>
+                            <p class="text-2xl font-bold text-blue-700">{{ filteredAggregateStatistics.total_calls || 0 }}</p>
                         </div>
-                        
-                        <div v-if="stats.metrics && Object.keys(stats.metrics).length > 0" class="overflow-x-auto">
+                        <div class="bg-orange-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Completed Calls</p>
+                            <p class="text-2xl font-bold text-orange-700">{{ filteredAggregateStatistics.completed_calls || 0 }}</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Unique Agents</p>
+                            <p class="text-2xl font-bold text-green-700">{{ filteredAggregateStatistics.unique_agents || 0 }}</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <p class="text-sm text-gray-600 mb-1">Calls per Agent (Avg)</p>
+                            <p class="text-2xl font-bold text-purple-700">
+                                {{ filteredAggregateStatistics.total_calls && filteredAggregateStatistics.unique_agents ? 
+                                    Math.round(filteredAggregateStatistics.total_calls / filteredAggregateStatistics.unique_agents) : 0 }}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div v-if="filteredAggregateStatistics.overall_metrics && Object.keys(filteredAggregateStatistics.overall_metrics).length > 0">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Overall Metrics</h3>
+                        <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr v-for="(metricStats, metric) in stats.metrics" :key="metric" class="hover:bg-gray-50">
+                                    <tr v-for="(stats, metric) in filteredAggregateStatistics.overall_metrics" :key="metric" class="hover:bg-gray-50">
                                         <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.average }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.min }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.max }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.count }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.average }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.min }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.max }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.count }}</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="agentStatistics && Object.keys(agentStatistics).length > 0" class="bg-white rounded-lg shadow-md mb-6">
+                <div 
+                    @click="toggleSection('agentComparison')"
+                    class="p-6 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
+                >
+                    <h2 class="text-xl font-semibold text-gray-800">Agent Comparison</h2>
+                    <span class="text-gray-500">{{ expandedSections.agentComparison ? '▼' : '▶' }}</span>
+                </div>
+                <div v-show="expandedSections.agentComparison" class="px-6 pb-6">
+                    <div class="mb-4">
+                        <input 
+                        type="text" 
+                        v-model="searchQuery"
+                            placeholder="Search agents..."
+                            class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th 
+                                        @click="sortBy('name')"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    >
+                                        Agent Name {{ getSortIcon('name') }}
+                                    </th>
+                                    <th 
+                                        @click="sortBy('total_calls')"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    >
+                                        Total Calls {{ getSortIcon('total_calls') }}
+                                    </th>
+                                    <th 
+                                        @click="sortBy('completed_calls')"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    >
+                                        Completed Calls {{ getSortIcon('completed_calls') }}
+                                    </th>
+                                    <th 
+                                        v-for="metric in availableMetrics" 
+                                        :key="metric"
+                                        @click="sortBy(metric)"
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    >
+                                        {{ metric }} {{ getSortIcon(metric) }}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr 
+                                    v-for="agent in sortedAgents" 
+                                    :key="agent.name"
+                                    @click="selectAgent(agent.name)"
+                                    :class="['hover:bg-gray-50 cursor-pointer', selectedAgent === agent.name ? 'bg-blue-50' : '']"
+                                >
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ agent.name }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">{{ agent.total_calls }}</td>
+                                    <td class="px-4 py-3 text-sm text-gray-700">{{ agent.completed_calls || 0 }}</td>
+                                    <td 
+                                        v-for="metric in availableMetrics" 
+                                        :key="metric"
+                                        class="px-4 py-3 text-sm text-gray-700"
+                                    >
+                                        {{ getMetricValue(agent, metric) }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                
+                    <p v-if="sortedAgents.length === 0" class="text-gray-500 text-center py-4">
+                        No agents found matching your search.
+                    </p>
+                </div>
+            </div>
+            
+            <div v-if="filteredAgentStatistics && Object.keys(filteredAgentStatistics).length > 0" class="bg-white rounded-lg shadow-md mb-6">
+                <div 
+                    @click="toggleSection('agentStatistics')"
+                    class="p-6 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
+                >
+                    <h2 class="text-xl font-semibold text-gray-800">Agent Statistics</h2>
+                    <span class="text-gray-500">{{ expandedSections.agentStatistics ? '▼' : '▶' }}</span>
+                </div>
+                <div v-show="expandedSections.agentStatistics" class="px-6 pb-6">
+                    <div class="space-y-6">
+                        <div v-for="(stats, agent) in filteredAgentStatistics" :key="agent" class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-lg font-semibold text-gray-800">{{ agent }}</h3>
+                                <div class="text-sm text-gray-600 space-x-4">
+                                    <span>Total Calls: {{ stats.total_calls }}</span>
+                                    <span>Completed Calls: {{ stats.completed_calls || 0 }}</span>
+                                </div>
+                            </div>
+                            
+                            <div v-if="stats.metrics && Object.keys(stats.metrics).length > 0" class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <tr v-for="(metricStats, metric) in stats.metrics" :key="metric" class="hover:bg-gray-50">
+                                            <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.average }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.min }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.max }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.count }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div v-if="parsedData" class="bg-white rounded-lg shadow-md mb-6">
+                <div 
+                    @click="toggleSection('parsedData')"
+                    class="p-6 cursor-pointer hover:bg-gray-50 flex justify-between items-center"
+                >
+                    <h2 class="text-xl font-semibold text-gray-800">Parsed CSV Data</h2>
+                    <span class="text-gray-500">{{ expandedSections.parsedData ? '▼' : '▶' }}</span>
+                </div>
+                <div v-show="expandedSections.parsedData" class="px-6 pb-6">
+                    <p class="text-sm text-gray-500 mb-4">Showing {{ filteredRows.length }} of {{ totalRows }} rows | Columns: {{ columns.length }}</p>
+                    
+                    <div class="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th v-for="column in columns" :key="column" 
+                                        class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {{ column }}
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="(row, index) in filteredRows" :key="index" class="hover:bg-gray-50">
+                                    <td v-for="column in columns" :key="column" 
+                                        class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                                        {{ row[column] || '' }}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -170,8 +314,102 @@
                     totalRows: 0,
                     agentStatistics: {},
                     aggregateStatistics: {},
-                    loading: false
+                    loading: false,
+                    sortColumn: null,
+                    sortDirection: 'asc',
+                    searchQuery: '',
+                    selectedAgent: null,
+                    selectedVerificationTypes: [],
+                    allVerificationTypes: [],
+                    expandedSections: {
+                        aggregateStatistics: true,
+                        agentComparison: true,
+                        agentStatistics: true,
+                        parsedData: false
+                    }
                 };
+            },
+            computed: {
+                filteredRows() {
+                    if (!this.rows || this.rows.length === 0) {
+                        return [];
+                    }
+                    if (!this.selectedVerificationTypes || this.selectedVerificationTypes.length === 0) {
+                        return [];
+                    }
+                    return this.rows.filter(row => {
+                        const verificationType = row.verification_type || '';
+                        return this.selectedVerificationTypes.includes(verificationType);
+                    });
+                },
+                filteredAgentStatistics() {
+                    if (!this.filteredRows || this.filteredRows.length === 0) {
+                        return {};
+                    }
+                    return this.calculateStatisticsFromRows(this.filteredRows);
+                },
+                filteredAggregateStatistics() {
+                    if (!this.filteredRows || this.filteredRows.length === 0) {
+                        return {};
+                    }
+                    return this.calculateAggregateStatisticsFromRows(this.filteredRows, this.filteredAgentStatistics);
+                },
+                sortedAgents() {
+                    const stats = this.filteredAgentStatistics;
+                    if (!stats || Object.keys(stats).length === 0) {
+                        return [];
+                    }
+                    
+                    let agents = Object.keys(stats).map(agent => ({
+                        name: agent,
+                        ...stats[agent]
+                    }));
+                    
+                    // Filter by search query
+                    if (this.searchQuery) {
+                        const query = this.searchQuery.toLowerCase();
+                        agents = agents.filter(agent => 
+                            agent.name.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    // Sort
+                    if (this.sortColumn) {
+                        agents.sort((a, b) => {
+                            let aVal, bVal;
+                            
+                            if (this.sortColumn === 'name') {
+                                aVal = a.name;
+                                bVal = b.name;
+                            } else if (this.sortColumn === 'total_calls') {
+                                aVal = a.total_calls || 0;
+                                bVal = b.total_calls || 0;
+                            } else if (this.sortColumn === 'completed_calls') {
+                                aVal = a.completed_calls || 0;
+                                bVal = b.completed_calls || 0;
+                            } else {
+                                // Sort by metric average
+                                aVal = a.metrics && a.metrics[this.sortColumn] ? a.metrics[this.sortColumn].average : 0;
+                                bVal = b.metrics && b.metrics[this.sortColumn] ? b.metrics[this.sortColumn].average : 0;
+                            }
+                            
+                            if (this.sortDirection === 'asc') {
+                                return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                            } else {
+                                return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                            }
+                        });
+                    }
+                    
+                    return agents;
+                },
+                availableMetrics() {
+                    const stats = this.filteredAggregateStatistics;
+                    if (!stats || !stats.overall_metrics) {
+                        return [];
+                    }
+                    return Object.keys(stats.overall_metrics);
+                }
             },
             methods: {
                 handleFileSelect(event) {
@@ -212,6 +450,11 @@
                             this.totalRows = data.total_rows || 0;
                             this.agentStatistics = data.agent_statistics || {};
                             this.aggregateStatistics = data.aggregate_statistics || {};
+                            
+                            // Extract unique verification types and set all as selected by default
+                            const verificationTypes = [...new Set(this.rows.map(row => row.verification_type).filter(Boolean))];
+                            this.allVerificationTypes = verificationTypes;
+                            this.selectedVerificationTypes = [...verificationTypes];
                         } else {
                             alert(data.error || 'Error uploading file. Please try again.');
                         }
@@ -221,6 +464,194 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+                sortBy(column) {
+                    if (this.sortColumn === column) {
+                        this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        this.sortColumn = column;
+                        this.sortDirection = 'asc';
+                    }
+                },
+                getSortIcon(column) {
+                    if (this.sortColumn !== column) {
+                        return '↕️';
+                    }
+                    return this.sortDirection === 'asc' ? '↑' : '↓';
+                },
+                getMetricValue(agent, metric) {
+                    if (!agent.metrics || !agent.metrics[metric]) {
+                        return '-';
+                    }
+                    return agent.metrics[metric].average;
+                },
+                selectAgent(agentName) {
+                    this.selectedAgent = this.selectedAgent === agentName ? null : agentName;
+                },
+                toggleSection(section) {
+                    this.expandedSections[section] = !this.expandedSections[section];
+                },
+                toggleVerificationType(type) {
+                    const index = this.selectedVerificationTypes.indexOf(type);
+                    if (index > -1) {
+                        this.selectedVerificationTypes.splice(index, 1);
+                    } else {
+                        this.selectedVerificationTypes.push(type);
+                    }
+                },
+                selectAllVerificationTypes() {
+                    this.selectedVerificationTypes = [...this.allVerificationTypes];
+                },
+                deselectAllVerificationTypes() {
+                    this.selectedVerificationTypes = [];
+                },
+                parseNumeric(value) {
+                    if (value === '' || value === null || value === undefined) {
+                        return null;
+                    }
+                    try {
+                        return parseFloat(value);
+                    } catch (e) {
+                        return null;
+                    }
+                },
+                calculateStatisticsFromRows(rows) {
+                    const agentStats = {};
+                    const metricColumns = [];
+                    
+                    if (rows && rows.length > 0) {
+                        const excludedCols = ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type', 
+                                              'call_recording_link', 'call_duration'];
+                        for (const col of Object.keys(rows[0])) {
+                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning')) {
+                                metricColumns.push(col);
+                            }
+                        }
+                    }
+                    
+                    for (const row of rows) {
+                        const agent = row.agent || 'Unknown';
+                        if (!agentStats[agent]) {
+                            agentStats[agent] = {
+                                total_calls: 0,
+                                completed_calls: 0,
+                                metrics: {}
+                            };
+                        }
+                        
+                        agentStats[agent].total_calls++;
+                        
+                        const callType = (row.call_type || '').trim();
+                        if (callType === 'completed_verification') {
+                            agentStats[agent].completed_calls++;
+                        }
+                        
+                        for (const metric of metricColumns) {
+                            if (metric === 'correct_inputs' && callType !== 'completed_verification') {
+                                continue;
+                            }
+                            
+                            const value = this.parseNumeric(row[metric]);
+                            if (value !== null) {
+                                if (!agentStats[agent].metrics[metric]) {
+                                    agentStats[agent].metrics[metric] = {
+                                        sum: 0,
+                                        count: 0,
+                                        values: []
+                                    };
+                                }
+                                agentStats[agent].metrics[metric].sum += value;
+                                agentStats[agent].metrics[metric].count++;
+                                agentStats[agent].metrics[metric].values.push(value);
+                            }
+                        }
+                    }
+                    
+                    // Convert to final format
+                    const result = {};
+                    for (const [agent, stats] of Object.entries(agentStats)) {
+                        const metricsSummary = {};
+                        for (const [metric, metricData] of Object.entries(stats.metrics)) {
+                            if (metricData.count > 0) {
+                                metricsSummary[metric] = {
+                                    average: Math.round((metricData.sum / metricData.count) * 100) / 100,
+                                    count: metricData.count,
+                                    min: Math.round(Math.min(...metricData.values) * 100) / 100,
+                                    max: Math.round(Math.max(...metricData.values) * 100) / 100,
+                                    total: stats.total_calls
+                                };
+                            }
+                        }
+                        result[agent] = {
+                            total_calls: stats.total_calls,
+                            completed_calls: stats.completed_calls,
+                            metrics: metricsSummary
+                        };
+                    }
+                    
+                    return result;
+                },
+                calculateAggregateStatisticsFromRows(rows, agentStats) {
+                    const totalCalls = rows.length;
+                    let completedCalls = 0;
+                    const allMetrics = {};
+                    const metricColumns = [];
+                    
+                    if (rows && rows.length > 0) {
+                        const excludedCols = ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type',
+                                              'call_recording_link', 'call_duration'];
+                        for (const col of Object.keys(rows[0])) {
+                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning')) {
+                                metricColumns.push(col);
+                            }
+                        }
+                    }
+                    
+                    for (const row of rows) {
+                        const callType = (row.call_type || '').trim();
+                        if (callType === 'completed_verification') {
+                            completedCalls++;
+                        }
+                        
+                        for (const metric of metricColumns) {
+                            if (metric === 'correct_inputs' && callType !== 'completed_verification') {
+                                continue;
+                            }
+                            
+                            const value = this.parseNumeric(row[metric]);
+                            if (value !== null) {
+                                if (!allMetrics[metric]) {
+                                    allMetrics[metric] = {
+                                        sum: 0,
+                                        count: 0,
+                                        values: []
+                                    };
+                                }
+                                allMetrics[metric].sum += value;
+                                allMetrics[metric].count++;
+                                allMetrics[metric].values.push(value);
+                            }
+                        }
+                    }
+                    
+                    const overallMetrics = {};
+                    for (const [metric, data] of Object.entries(allMetrics)) {
+                        if (data.count > 0) {
+                            overallMetrics[metric] = {
+                                average: Math.round((data.sum / data.count) * 100) / 100,
+                                count: data.count,
+                                min: Math.round(Math.min(...data.values) * 100) / 100,
+                                max: Math.round(Math.max(...data.values) * 100) / 100
+                            };
+                        }
+                    }
+                    
+                    return {
+                        total_calls: totalCalls,
+                        completed_calls: completedCalls,
+                        unique_agents: Object.keys(agentStats).length,
+                        overall_metrics: overallMetrics
+                    };
                 }
             }
         }).mount('#app');

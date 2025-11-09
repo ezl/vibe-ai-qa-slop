@@ -35,7 +35,17 @@ def _calculate_agent_statistics(rows):
         agent = row.get('agent', 'Unknown')
         agent_stats[agent]['total_calls'] += 1
         
+        # Count completed calls (call_type == completed_verification)
+        call_type = row.get('call_type', '').strip()
+        if call_type == 'completed_verification':
+            agent_stats[agent]['completed_calls'] = agent_stats[agent].get('completed_calls', 0) + 1
+        
         for metric in metric_columns:
+            # For correct_inputs, only count records where call_type is completed_verification
+            if metric == 'correct_inputs':
+                if call_type != 'completed_verification':
+                    continue
+            
             value = _parse_numeric(row.get(metric))
             if value is not None:
                 agent_stats[agent]['metrics'][metric]['sum'] += value
@@ -61,6 +71,7 @@ def _calculate_agent_statistics(rows):
         
         result[agent] = {
             'total_calls': stats['total_calls'],
+            'completed_calls': stats.get('completed_calls', 0),
             'metrics': metrics_summary
         }
     
@@ -70,6 +81,13 @@ def _calculate_agent_statistics(rows):
 def _calculate_aggregate_statistics(rows, agent_stats):
     """Calculate overall aggregate statistics."""
     total_calls = len(rows)
+    
+    # Count completed calls
+    completed_calls = 0
+    for row in rows:
+        call_type = row.get('call_type', '').strip()
+        if call_type == 'completed_verification':
+            completed_calls += 1
     
     # Aggregate metrics across all agents
     all_metrics = defaultdict(lambda: {'sum': 0, 'count': 0, 'values': []})
@@ -83,6 +101,12 @@ def _calculate_aggregate_statistics(rows, agent_stats):
     
     for row in rows:
         for metric in metric_columns:
+            # For correct_inputs, only count records where call_type is completed_verification
+            if metric == 'correct_inputs':
+                call_type = row.get('call_type', '').strip()
+                if call_type != 'completed_verification':
+                    continue
+            
             value = _parse_numeric(row.get(metric))
             if value is not None:
                 all_metrics[metric]['sum'] += value
@@ -105,6 +129,7 @@ def _calculate_aggregate_statistics(rows, agent_stats):
     
     return {
         'total_calls': total_calls,
+        'completed_calls': completed_calls,
         'unique_agents': unique_agents,
         'overall_metrics': overall_metrics
     }
