@@ -119,18 +119,16 @@
                                     <tr>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
                                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flags</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     <tr v-for="(stats, metric) in filteredAggregateStatistics.overall_metrics" :key="metric" class="hover:bg-gray-50">
                                         <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
                                         <td class="px-4 py-2 text-sm text-gray-700">{{ stats.average }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.min }}</td>
-                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.max }}</td>
                                         <td class="px-4 py-2 text-sm text-gray-700">{{ stats.count }}</td>
+                                        <td class="px-4 py-2 text-sm text-gray-700">{{ stats.flags || 0 }}</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -242,18 +240,16 @@
                                         <tr>
                                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Metric</th>
                                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Min</th>
-                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Max</th>
                                             <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Count</th>
+                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flags</th>
                                         </tr>
                                     </thead>
                                     <tbody class="bg-white divide-y divide-gray-200">
                                         <tr v-for="(metricStats, metric) in stats.metrics" :key="metric" class="hover:bg-gray-50">
                                             <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ metric }}</td>
                                             <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.average }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.min }}</td>
-                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.max }}</td>
                                             <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.count }}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700">{{ metricStats.flags || 0 }}</td>
                                         </tr>
                                     </tbody>
                                 </table>
@@ -518,12 +514,13 @@
                 calculateStatisticsFromRows(rows) {
                     const agentStats = {};
                     const metricColumns = [];
+                    const excludedMetrics = ['leading_questions', 'user_confused', 'asked_every_question'];
                     
                     if (rows && rows.length > 0) {
                         const excludedCols = ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type', 
                                               'call_recording_link', 'call_duration'];
                         for (const col of Object.keys(rows[0])) {
-                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning')) {
+                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning') && !excludedMetrics.includes(col)) {
                                 metricColumns.push(col);
                             }
                         }
@@ -574,11 +571,12 @@
                         const metricsSummary = {};
                         for (const [metric, metricData] of Object.entries(stats.metrics)) {
                             if (metricData.count > 0) {
+                                // Count flags (values not equal to 1)
+                                const flagsCount = metricData.values.filter(v => v !== 1).length;
                                 metricsSummary[metric] = {
                                     average: Math.round((metricData.sum / metricData.count) * 100) / 100,
                                     count: metricData.count,
-                                    min: Math.round(Math.min(...metricData.values) * 100) / 100,
-                                    max: Math.round(Math.max(...metricData.values) * 100) / 100,
+                                    flags: flagsCount,
                                     total: stats.total_calls
                                 };
                             }
@@ -597,12 +595,13 @@
                     let completedCalls = 0;
                     const allMetrics = {};
                     const metricColumns = [];
+                    const excludedMetrics = ['leading_questions', 'user_confused', 'asked_every_question'];
                     
                     if (rows && rows.length > 0) {
                         const excludedCols = ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type',
                                               'call_recording_link', 'call_duration'];
                         for (const col of Object.keys(rows[0])) {
-                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning')) {
+                            if (!excludedCols.includes(col) && !col.endsWith('_reasoning') && !excludedMetrics.includes(col)) {
                                 metricColumns.push(col);
                             }
                         }
@@ -639,11 +638,12 @@
                     const overallMetrics = {};
                     for (const [metric, data] of Object.entries(allMetrics)) {
                         if (data.count > 0) {
+                            // Count flags (values not equal to 1)
+                            const flagsCount = data.values.filter(v => v !== 1).length;
                             overallMetrics[metric] = {
                                 average: Math.round((data.sum / data.count) * 100) / 100,
                                 count: data.count,
-                                min: Math.round(Math.min(...data.values) * 100) / 100,
-                                max: Math.round(Math.max(...data.values) * 100) / 100
+                                flags: flagsCount
                             };
                         }
                     }

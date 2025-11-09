@@ -24,11 +24,12 @@ def _calculate_agent_statistics(rows):
     
     # Identify numeric metric columns (columns that end with specific patterns or are known metrics)
     metric_columns = []
+    excluded_metrics = ['leading_questions', 'user_confused', 'asked_every_question']
     if rows:
         for col in rows[0].keys():
             # Look for columns that might be scores/metrics
             if col not in ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type', 
-                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning'):
+                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning') and col not in excluded_metrics:
                 metric_columns.append(col)
     
     for row in rows:
@@ -61,11 +62,12 @@ def _calculate_agent_statistics(rows):
             if count > 0:
                 avg = metric_data['sum'] / count
                 values = metric_data['values']
+                # Count flags (values not equal to 1)
+                flags_count = sum(1 for v in values if v != 1)
                 metrics_summary[metric] = {
                     'average': round(avg, 2),
                     'count': count,
-                    'min': round(min(values), 2) if values else None,
-                    'max': round(max(values), 2) if values else None,
+                    'flags': flags_count,
                     'total': stats['total_calls']
                 }
         
@@ -93,10 +95,11 @@ def _calculate_aggregate_statistics(rows, agent_stats):
     all_metrics = defaultdict(lambda: {'sum': 0, 'count': 0, 'values': []})
     
     metric_columns = []
+    excluded_metrics = ['leading_questions', 'user_confused', 'asked_every_question']
     if rows:
         for col in rows[0].keys():
             if col not in ['order_id', 'applicant_name', 'agent', 'verification_type', 'call_type',
-                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning'):
+                          'call_recording_link', 'call_duration'] and not col.endswith('_reasoning') and col not in excluded_metrics:
                 metric_columns.append(col)
     
     for row in rows:
@@ -117,11 +120,12 @@ def _calculate_aggregate_statistics(rows, agent_stats):
     overall_metrics = {}
     for metric, data in all_metrics.items():
         if data['count'] > 0:
+            # Count flags (values not equal to 1)
+            flags_count = sum(1 for v in data['values'] if v != 1)
             overall_metrics[metric] = {
                 'average': round(data['sum'] / data['count'], 2),
                 'count': data['count'],
-                'min': round(min(data['values']), 2) if data['values'] else None,
-                'max': round(max(data['values']), 2) if data['values'] else None
+                'flags': flags_count
             }
     
     # Count unique agents
