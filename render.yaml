@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: callcenter-qa
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: gunicorn callcenter_qa.wsgi:application
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.6
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: callcenter-qa.onrender.com
+    healthCheckPath: /
+
+databases:
+  - name: callcenter-qa-db
+    plan: free
+    databaseName: callcenter_qa
+    user: callcenter_qa_user
+
