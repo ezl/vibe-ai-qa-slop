@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: qa
+    name: argus-qa
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
